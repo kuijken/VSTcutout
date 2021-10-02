@@ -1,4 +1,6 @@
 2021-10-02
 Added a flag to the cutout method switches between the global astrometry offset, or one determined per extension (eg if raw frame has some astrom distortion in its WCS as well as an offset).
 
-Still need to add logic to fall back to the global value when the extension one is poor eg because of lack of stars.
+Still need to add logic to fall back to the global value when the extension one is poor eg because of lack of stars. Base this on the total weight that contributed? Or some good ness of fit? Interpolate the offsets across the fov?
+
+In general, when various extensions contribute to the cutout, because the reference stars are mapped to the pixels of the last extension plotted strange things can in principle happen. Better stick to the extension that contains (or most nearly contains) the target?
