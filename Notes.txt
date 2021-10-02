@@ -1,0 +1,4 @@
+2021-10-02
+Added a flag to the cutout method switches between the global astrometry offset, or one determined per extension (eg if raw frame has some astrom distortion in its WCS as well as an offset).
+
+Still need to add logic to fall back to the global value when the extension one is poor eg because of lack of stars.
