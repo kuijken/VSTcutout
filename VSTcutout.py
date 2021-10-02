@@ -167,7 +167,7 @@ class VSTcutout:
             pk=np.unravel_index(h.argmax(),h.shape)
             xoff=hbins[0][0]+(hbins[0][1]-hbins[0][0])*(pk[0]+0.5)
             yoff=hbins[1][0]+(hbins[1][1]-hbins[1][0])*(pk[1]+0.5)
-            print('Offsets found for RA, DEC:',xoff,yoff,'deg')
+            print('Offsets found for RA, DEC:',xoff,yoff,'deg [rough]')
             # Refined crosscorrelation with smaller bins in smaller range
             # measure peak as mean of histogram above median after adding
             # Gaussian noise to smooth distribution
@@ -175,8 +175,8 @@ class VSTcutout:
             box=0.002  # refined plus/min range of offsets to probe (deg)
             Nrand=20
             h=np.zeros((Noff,Noff))
-            self.dxext=np.zeros(len(self.images))
-            self.dyext=np.zeros(len(self.images))
+            self.xoff=np.zeros(len(self.images))
+            self.yoff=np.zeros(len(self.images))
             for ext in range(len(self.images)):
                 src=self.srccat[2*ext+2].data
                 xw=src['X_WORLD']  # source positions in extension ext
@@ -192,9 +192,9 @@ class VSTcutout:
                     hh,hbins=np.histogramdd((dx+rx-xoff,dy+ry-yoff),bins=Noff,
                                          range=[[-box,box],[-box,box]])
                     h+=hh/Nrand
-                dxext,dyext=iterweightedctr(dx,dy,1./3600)
-                self.dxext[ext]=dxext
-                self.dyext[ext]=dyext
+                xoffext,yoffext=iterweightedctr(dx,dy,1./3600)
+                self.xoff[ext]=xoffext # offset image-ref for this ext [deg]
+                self.yoff[ext]=yoffext
             plt.imshow(h.T,extent=[xoff-box,xoff+box,yoff-box,yoff+box],
                            origin='lower')
             plt.xlabel('Delta(RA) [deg]')
@@ -218,7 +218,8 @@ class VSTcutout:
         print('RA range %8.4f %8.4f ; DEC range %8.4f %8.4f' % (self.Xlo,self.Xhi,self.Ylo,self.Yhi))
 
 
-    def cutout(self,ra,dec,width=100,label='',savefile=''):
+    def cutout(self,ra,dec,width=100,label='',savefile='',
+                   offsetperextension=False):
         '''
         cut out width x width pixels around (ra,dec) coordinate, 
             scanning all FITS extensions
@@ -242,15 +243,15 @@ class VSTcutout:
                       % (ra,dec))
             return out
         xc,yc=width//2,width//2
-        #get GSC star coordinates for overplotting
-        refra=self.refstars['RAJ2000']+self.XOFF
-        refdec=self.refstars['DEJ2000']+self.YOFF
         xref=np.zeros((0))
         yref=np.zeros((0))
         for im in range(len(self.images)):
             w=self.wcs[im]
             ny,nx=w.array_shape
-            x,y=w.wcs_world2pix(ra+self.XOFF,dec+self.YOFF,0)
+            if offsetperextension:
+                x,y=w.wcs_world2pix(ra+self.xoff[im],dec+self.yoff[im],0)
+            else:
+                x,y=w.wcs_world2pix(ra+self.XOFF,dec+self.YOFF,0)
             ix,iy=int(np.round(x)),int(np.round(y))
             #min, max pixels that need to be copied to cutout
             xlo=min(max(self.underscanx,ix-xc),self.overscanx)
@@ -266,10 +267,16 @@ class VSTcutout:
             out[ylo-iy+yc:yhi-iy+yc,xlo-ix+xc:xhi-ix+xc]=self.images[im].data[ylo:yhi,xlo:xhi] - bias
             if (xlo<xhi) & (ylo<yhi):   # if thumbnail on this fits extension
                 # then get ref.stars in pixel coordinates using this WCS
+                if offsetperextension:
+                    refra=self.refstars['RAJ2000']+self.xoff[im]
+                    refdec=self.refstars['DEJ2000']+self.yoff[im]
+                else:
+                    refra=self.refstars['RAJ2000']+self.XOFF
+                    refdec=self.refstars['DEJ2000']+self.YOFF
                 xref,yref=w.wcs_world2pix(refra,refdec,0)
                 xref-= ix-xc
                 yref-= iy-yc
-
+        # set scale limits from image statistics - 2x interquartile range
         zm=np.median(out[out!=0])
         z1=np.median(out[(out!=0) & (out<zm)])
         z2=np.median(out[(out!=0) & (out>zm)])
