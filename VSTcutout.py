@@ -40,6 +40,7 @@ class VSTcutout:
         srcXref   a 2D image of the crosscorrelation with the reference cat
         srcXrefbins[0],[1] corresponding bin edges in RA,Dec
         '''
+
         if (image[:4]=='http'): # if URL then first download it
             headers={}
             response=requests.get(image, stream=True, headers=headers)
@@ -167,14 +168,15 @@ class VSTcutout:
             xoff=hbins[0][0]+(hbins[0][1]-hbins[0][0])*(pk[0]+0.5)
             yoff=hbins[1][0]+(hbins[1][1]-hbins[1][0])*(pk[1]+0.5)
             print('Offsets found for RA, DEC:',xoff,yoff,'deg')
-            # DO A REFINEMENT STEP HERE TO IMPROVE ALIGNMENT
-            # SIMPLY USE FINER BINS IN SMALLER RANGE
-            # AND MEASURE PEAK AS MEAN OF HISTOGRAM ABOVE THE MEDIAN
-            # AVERAGE ALL VALUES IN SMALL WINDOW CENTERED ON PEAK?
-            # OR ONLY ON THE EXTENSIONS IN THE THUMBNAIL?
+            # Refined crosscorrelation with smaller bins in smaller range
+            # measure peak as mean of histogram above median after adding
+            # Gaussian noise to smooth distribution
             Noff=25   # binning for fine astrometric offset search
-            box=0.002  # refined ± range of offsets to probe (deg)
+            box=0.002  # refined plus/min range of offsets to probe (deg)
+            Nrand=20
             h=np.zeros((Noff,Noff))
+            self.dxext=np.zeros(len(self.images))
+            self.dyext=np.zeros(len(self.images))
             for ext in range(len(self.images)):
                 src=self.srccat[2*ext+2].data
                 xw=src['X_WORLD']  # source positions in extension ext
@@ -184,17 +186,21 @@ class VSTcutout:
                 keep=(np.abs(dx-xoff)<box*1.5) & (np.abs(dy-yoff)<box*1.5)
                 dx=dx[keep]
                 dy=dy[keep]
-                for irand in range(20):
+                for irand in range(Nrand):  # smooth histogram by adding noise
                     rx=rnd.randn(len(dx)) / Noff * box *2
                     ry=rnd.randn(len(dx)) / Noff * box *2
                     hh,hbins=np.histogramdd((dx+rx-xoff,dy+ry-yoff),bins=Noff,
                                          range=[[-box,box],[-box,box]])
-                    h+=hh
+                    h+=hh/Nrand
+                dxext,dyext=iterweightedctr(dx,dy,1./3600)
+                self.dxext[ext]=dxext
+                self.dyext[ext]=dyext
             plt.imshow(h.T,extent=[xoff-box,xoff+box,yoff-box,yoff+box],
                            origin='lower')
             plt.xlabel('Delta(RA) [deg]')
             plt.ylabel('Delta(DEC) [deg]')
             plt.title('Astrometry Xcorr with '+refcatname+' (zoom)')
+            plt.colorbar(label='Ref stars / offset bin')
             plt.savefig(fitsfile+'_astrom_zoom.png')
             plt.clf()
             self.srcXrefzoom=h
@@ -228,7 +234,7 @@ class VSTcutout:
         if self.fitsfile == None:
             print('No fits file to make cutout from!')
             return np.zeros((0,0))
-
+        
         out=np.zeros((width,width))
         if (ra+self.XOFF<self.Xlo) | (ra+self.XOFF>self.Xhi) | \
                       (dec+self.YOFF<self.Ylo) | (dec+self.YOFF>self.Yhi):
@@ -289,3 +295,26 @@ class VSTcutout:
 
         return out
 
+    
+def iterweightedctr(x,y,sig,cap=4,verbose=False):
+        '''
+        x,y are two lists of N coordinates
+        Find the centre of the distrubution by adaptively fitting Gaussian
+        sig is fixed rms width of Gaussian weight, truncated at cap sigma
+        Each iteration adjusts weights based on new ctr and then
+           recomputes the ctr
+        '''
+        xc,yc=np.mean(x),np.mean(y)
+        if verbose:
+            print('Iterated centres:')
+            print('-', xc,yc)
+        for iter in range(10):
+            rsig2=np.minimum(cap**2,(x-xc)**2+(y-yc)**2)/sig**2
+                 # square rad in units of filter sigma, capped at 4
+            w=np.exp(-0.5*rsig2)-np.exp(-0.5*cap**2)
+            wtot=w.sum()
+            xc,yc=(w*x).sum()/wtot, (w*y).sum()/wtot
+            if verbose:
+                print(iter, xc,yc)
+        return xc,yc
+    
