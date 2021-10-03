@@ -31,7 +31,9 @@ class VSTcutout:
 
         attributes are :
 
-        XOFF,YOFF; (-0 if fixastrom=False)
+        XOFF,YOFF: (=0 if fixastrom=False) average offset image-ref in RA,DEC
+        xoff,yoff: arrays of astrom offsets, one value per extension
+        xofffit,yofffit: linear fit of xoff,yoff values vs RA,DEC
         images    list with all image extensions, (or 1 if not a MEF)
         wcs       list with the corresponding WCS
         over/underscanx/y to mark start of physical pixels
@@ -177,6 +179,7 @@ class VSTcutout:
             h=np.zeros((Noff,Noff))
             self.xoff=np.zeros(len(self.images))
             self.yoff=np.zeros(len(self.images))
+            badoff=np.zeros(len(self.images),dtype=bool)
             for ext in range(len(self.images)):
                 src=self.srccat[2*ext+2].data
                 xw=src['X_WORLD']  # source positions in extension ext
@@ -195,6 +198,7 @@ class VSTcutout:
                 xoffext,yoffext=iterweightedctr(dx,dy,1./3600)
                 self.xoff[ext]=xoffext # offset image-ref for this ext [deg]
                 self.yoff[ext]=yoffext
+                badoff[ext]=False   # flag that can be used to indicate poor offsets
             plt.imshow(h.T,extent=[xoff-box,xoff+box,yoff-box,yoff+box],
                            origin='lower')
             plt.xlabel('Delta(RA) [deg]')
@@ -210,21 +214,44 @@ class VSTcutout:
             yoff += hbins[1][0]+(hbins[1][1]-hbins[1][0])*(pk[1]+0.5)
             self.XOFF=xoff   # best-fit offset image-reference, in deg.
             self.YOFF=yoff
+            self.xoff[badoff]=self.XOFF  # fix poorly determined offsets to global value
+            self.yoff[badoff]=self.YOFF
             self.refcatname=refcatname
             print('Offsets found for RA, DEC:',xoff,yoff,'deg')
+            # A next step could be here to make a fit of the offsets vs field position -
+            # eg in OMEGACAM there is an indication for a small rotation, and a linear fit of
+            # xoff, yoff vs wcs[ext].wcs.crpix[0] and ..[1] can take this out.
+            # also provides a way to interpolate over poorly determined chips.
+            # Similarly differential refraction can be corrected with a linear fit.
+            # could provide this fit as self.xoff_fit, self.yoff_fit?
+            xy00=np.array([w.wcs_pix2world(0,0,0) for w in self.wcs])  # lower left corners of each ext
+            A=np.vstack([np.ones(len(xy00)), xy00[:,0],xy00[:,1]]).T
+            cxoff=np.linalg.lstsq(A,self.xoff,rcond=None)[0]
+            cyoff=np.linalg.lstsq(A,self.yoff,rcond=None)[0]
+            modxoff=np.dot(A,cxoff)
+            modyoff=np.dot(A,cyoff)
+            self.xofffit=modxoff
+            self.yofffit=modyoff
         else:
             self.XOFF=0
             self.YOFF=0
+            self.xoff=np.zeros(len(self.images))
+            self.yoff=np.zeros(len(self.images))
+            self.xofffit=np.zeros(len(self.images))
+            self.yofffit=np.zeros(len(self.images))
         print('RA range %8.4f %8.4f ; DEC range %8.4f %8.4f' % (self.Xlo,self.Xhi,self.Ylo,self.Yhi))
 
 
-    def cutout(self,ra,dec,width=100,label='',savefile='',
-                   offsetperextension=False):
+    def cutout(self,ra,dec,width=100,label='',savefile='',offset='avg'):
         '''
         cut out width x width pixels around (ra,dec) coordinate, 
             scanning all FITS extensions
         preserve orientation of the pixels (no interpolations).
-        apply XOFF,YOFF to all world coordinates
+        apply offsets to all world coordinates (only if VSTcutout was called with fixastrom=True):
+            offset='avg' : XOFF,YOFF   (average over all extensions)
+            offset='ext' : xoff,yoff   (measured value per extensions)
+            offset='fit' : xofffit,yofffit   (linear fit to measured value per extensions)
+            offset anything else: just use header WCS directly without correction
         No coaddition, simple projection of any pixels that cover cutout area
         Makes a figure:
             label is used in the title of the plot (eg source name)
@@ -245,13 +272,25 @@ class VSTcutout:
         xc,yc=width//2,width//2
         xref=np.zeros((0))
         yref=np.zeros((0))
+        if offset=='ext':
+            print('offset parameter is ext: so using WCS with per-extension shifts')
+        elif offset=='fit':
+            print('offset parameter is fit: so using linear fit to per-extension WCS offsets')
+        elif offset=='avg':
+            print('offset parameter is avg: so using WCS with best-fit global shift')
+        else:
+            print('offset parameter is not ext,fit,avg, so using WCS without correction')
         for im in range(len(self.images)):
             w=self.wcs[im]
             ny,nx=w.array_shape
-            if offsetperextension:
-                x,y=w.wcs_world2pix(ra+self.xoff[im],dec+self.yoff[im],0)
+            if offset=='ext':
+                x,y=w.wcs_world2pix(ra+self.xoff[im],dec+self.yoff[im],1)
+            elif offset=='fit':
+                x,y=w.wcs_world2pix(ra+self.xofffit[im],dec+self.yofffit[im],1)
+            elif offset=='avg':
+                x,y=w.wcs_world2pix(ra+self.XOFF,dec+self.YOFF,1)
             else:
-                x,y=w.wcs_world2pix(ra+self.XOFF,dec+self.YOFF,0)
+                x,y=w.wcs_world2pix(ra,dec,1)
             ix,iy=int(np.round(x)),int(np.round(y))
             #min, max pixels that need to be copied to cutout
             xlo=min(max(self.underscanx,ix-xc),self.overscanx)
@@ -267,13 +306,19 @@ class VSTcutout:
             out[ylo-iy+yc:yhi-iy+yc,xlo-ix+xc:xhi-ix+xc]=self.images[im].data[ylo:yhi,xlo:xhi] - bias
             if (xlo<xhi) & (ylo<yhi):   # if thumbnail on this fits extension
                 # then get ref.stars in pixel coordinates using this WCS
-                if offsetperextension:
+                if offset=='ext':
                     refra=self.refstars['RAJ2000']+self.xoff[im]
                     refdec=self.refstars['DEJ2000']+self.yoff[im]
-                else:
+                elif offset=='fit':
+                    refra=self.refstars['RAJ2000']+self.xofffit[im]
+                    refdec=self.refstars['DEJ2000']+self.yofffit[im]
+                elif offset=='avg':
                     refra=self.refstars['RAJ2000']+self.XOFF
                     refdec=self.refstars['DEJ2000']+self.YOFF
-                xref,yref=w.wcs_world2pix(refra,refdec,0)
+                else:
+                    refra=self.refstars['RAJ2000']
+                    refdec=self.refstars['DEJ2000']
+                xref,yref=w.wcs_world2pix(refra,refdec,1)
                 xref-= ix-xc
                 yref-= iy-yc
         # set scale limits from image statistics - 2x interquartile range
@@ -293,6 +338,8 @@ class VSTcutout:
         plt.plot([xc,xc],[yc*0.9,yc*0.8],'k')
         plt.plot([xc,xc],[yc*1.1,yc*1.2],'k')
         plt.plot([xc*0.9,xc*0.8],[yc,yc],'k')
+        plt.xlim(0,width)
+        plt.ylim(0,width)
         if savefile == '':
             plt.show()
         else:
