@@ -251,12 +251,12 @@ class VSTcutout:
             offset='avg' : XOFF,YOFF   (average over all extensions)
             offset='ext' : xoff,yoff   (measured value per extensions)
             offset='fit' : xofffit,yofffit   (linear fit to measured value per extensions)
-            offset anything else: just use header WCS directly without correction
+            offset= anything else: just use header WCS directly without correction
         No coaddition, simple projection of any pixels that cover cutout area
         Makes a figure:
             label is used in the title of the plot (eg source name)
             if savefile is given, use that as filename, otherwise display 
-        cutout pixels are returned by the method as a numpy array.
+        The cutout pixels are returned by the method as a numpy array.
         '''
 
         if self.fitsfile == None:
