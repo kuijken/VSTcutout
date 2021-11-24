@@ -218,12 +218,13 @@ class VSTcutout:
             self.yoff[badoff]=self.YOFF
             self.refcatname=refcatname
             print('Offsets found for RA, DEC:',xoff,yoff,'deg')
-            # A next step could be here to make a fit of the offsets vs field position -
-            # eg in OMEGACAM there is an indication for a small rotation, and a linear fit of
-            # xoff, yoff vs wcs[ext].wcs.crpix[0] and ..[1] can take this out.
+            # Make a fit of the offsets vs field position -
+            #   eg in OMEGACAM there is an indication for a small rotation,
+            #   and a linear fit of xoff, yoff vs wcs[ext].wcs.crpix[0]
+            #   and ..[1] can take this out.
             # also provides a way to interpolate over poorly determined chips.
-            # Similarly differential refraction can be corrected with a linear fit.
-            # could provide this fit as self.xoff_fit, self.yoff_fit?
+            # Note differential refraction can be corrected with a linear fit.
+            # provide this fit as self.xoff_fit, self.yoff_fit
             xy00=np.array([w.wcs_pix2world(0,0,0) for w in self.wcs])  # lower left corners of each ext
             A=np.vstack([np.ones(len(xy00)), xy00[:,0],xy00[:,1]]).T
             cxoff=np.linalg.lstsq(A,self.xoff,rcond=None)[0]
@@ -349,7 +350,6 @@ class VSTcutout:
 
         return out
 
-    
 def iterweightedctr(x,y,sig,cap=4,verbose=False):
         '''
         x,y are two lists of N coordinates
@@ -363,7 +363,7 @@ def iterweightedctr(x,y,sig,cap=4,verbose=False):
             print('Iterated centres:')
             print('-', xc,yc)
         for iter in range(10):
-            rsig2=np.minimum(cap**2,(x-xc)**2+(y-yc)**2)/sig**2
+            rsig2=np.minimum(cap**2,((x-xc)**2+(y-yc)**2)/sig**2)
                  # square rad in units of filter sigma, capped at 4
             w=np.exp(-0.5*rsig2)-np.exp(-0.5*cap**2)
             wtot=w.sum()
