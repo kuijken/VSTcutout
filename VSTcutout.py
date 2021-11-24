@@ -350,6 +350,39 @@ class VSTcutout:
 
         return out
 
+    def makethumb(self):
+        '''
+        Make a thumbnail image of the whole mosaic.
+        Currently only tested for raw OMEGACAM data
+        '''
+        z=np.zeros((1080,1072))
+        for chip in self.images:
+            hh=chip.data
+            m,n=hh.shape   # no. pixels in y,x, 4200, 2144
+            bias=np.median(hh[:,:40])
+            level=np.median(hh[100:-100,48:-48])-bias
+            h32=(np.array([[np.median(hh[i:i+16,j:j+16]) for j in range(0,n,16)] for i in range(0,m,16)])-bias)/level
+                #plt.imshow(h32,vmin=0.95,vmax=1.1,origin='lower',cmap='gray_r')
+                #plt.show()
+            m32,n32=h32.shape
+            i0=538-int(chip.header['crpix2'])//16
+            j0=536-int(chip.header['crpix1'])//16
+            # print chip.header['crpix1'],chip.header['crpix2'],i0,j0,m32,n32
+            z[i0:i0+m32,j0:j0+n32]=h32
+
+        plt.rcParams['text.usetex']=False
+        plt.figure(figsize=(9,9),dpi=100)
+        plt.imshow(z,vmin=0.9,vmax=1.1,origin='lower',cmap='gray_r',aspect=1)
+        plt.title(self.fitsfile + '      raw, median +/- 10%')
+        plt.xlabel('RA %.4f   DEC %.4f' % ((self.Xlo+self.Xhi)/2, (self.Ylo+self.Yhi)/2) )
+        plt.box(False)
+        plt.xticks([])
+        plt.yticks([])
+        plt.savefig(self.fitsfile+'_thumb.png')
+        plt.clf()
+
+
+        
 def iterweightedctr(x,y,sig,cap=4,verbose=False):
         '''
         x,y are two lists of N coordinates
