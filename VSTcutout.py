@@ -49,6 +49,7 @@ class VSTcutout:
             contentdisposition = response.headers.get('Content-Disposition')
             if contentdisposition == None:    # if file cannot be returned
                 self.fitsfile=None
+                print(image,'cannot be downloaded')
                 return
             value, params = cgi.parse_header(contentdisposition)
             filename = params["filename"]
@@ -360,6 +361,11 @@ class VSTcutout:
         Make a thumbnail image of the whole mosaic.
         Currently only tested for raw OMEGACAM data
         '''
+
+        if self.fitsfile == None:
+            print('No fits file to make cutout from!')
+            return 
+        
         z=np.zeros((1080,1072))
         for chip in self.images:
             hh=chip.data
