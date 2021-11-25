@@ -113,11 +113,16 @@ class VSTcutout:
         ra=(xhi+xlo)/2
         dec=(yhi+ylo)/2
         #search GSC catalogue for overplotting
-        Vizier.ROW_LIMIT=50000
+        Vizier.ROW_LIMIT=100000
+        maxrefstars=3000
         r=Vizier.query_region(coord.SkyCoord(ra=ra,dec=dec,unit=(u.deg,u.deg)),
                     width=(xhi-xlo)*u.deg,height=(yhi-ylo)*u.deg,
                     catalog=refcatname)[0]
         print(len(r),'GSC stars found.')
+        if len(r)>maxrefstars:
+            subset=np.random.choice(len(r),size=maxrefstars,replace=False)
+            r=r[subset]
+            print('Randomly subsampled %i reference stars' % maxrefstars)
         self.refstars=r
         if (fixastrom==True) | ((fixastrom=='MEF') & self.MEF):
             # make world coordinate catalogue using pyextractor,
