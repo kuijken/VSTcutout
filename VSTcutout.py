@@ -18,7 +18,8 @@ class VSTcutout:
     Can work with raw OMEGACAM data, includes crude astrometric correction
        to work around pointing errors - accuracy ~ 5 arcsec
     '''
-    def __init__(self,image,fixastrom='MEF',refcatname='GSC2.3'):
+    def __init__(self,image,fixastrom='MEF',refcatname='GSC2.3',
+                     maxrefstars=3000):
         '''
         Load a fits file <image> (can be URL) and its WCS.
         fixastrom determines whether to tweak the WCS.
@@ -28,6 +29,8 @@ class VSTcutout:
          if fixastrom='MEF' then only do this for MEF files, not for
            single-extension files.
          any other value means NO astrometry correction is applied
+         maxrefstars is maximum number of astrom stars to xcorr with;
+           if more are found in the ref.cat. these are randomly subsampled
 
         attributes are :
 
@@ -115,7 +118,6 @@ class VSTcutout:
         dec=(yhi+ylo)/2
         #search GSC catalogue for overplotting
         Vizier.ROW_LIMIT=100000
-        maxrefstars=3000
         r=Vizier.query_region(coord.SkyCoord(ra=ra,dec=dec,unit=(u.deg,u.deg)),
                     width=(xhi-xlo)*u.deg,height=(yhi-ylo)*u.deg,
                     catalog=refcatname)[0]
