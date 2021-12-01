@@ -19,7 +19,7 @@ class VSTcutout:
        to work around pointing errors - accuracy ~ 5 arcsec
     '''
     def __init__(self,image,fixastrom='MEF',refcatname='GSC2.3',
-                     maxrefstars=3000):
+                     maxrefstars=6000):
         '''
         Load a fits file <image> (can be URL) and its WCS.
         fixastrom determines whether to tweak the WCS.
