@@ -358,40 +358,47 @@ class VSTcutout:
 
         return out
 
-    def makethumb(self):
+    def makethumb(self,bin=16):
         '''
         Make a thumbnail image of the whole mosaic.
-        Currently only tested for raw OMEGACAM data
+        Currently only tested for raw OMEGACAM data.
+        Binning factor should be a power of 2
         '''
-
+        if not bin in [4,8,16,32,64,128,256]:
+            print('Binning factor should be a power of 2: min 4, max 256')
+            return
+        
         if self.fitsfile == None:
             print('No fits file to make cutout from!')
             return 
         
-        z=np.zeros((1080,1072))
+        z=np.zeros((17280//bin,17152//bin))
         for chip in self.images:
             hh=chip.data
             m,n=hh.shape   # no. pixels in y,x, 4200, 2144
             bias=np.median(hh[:,:40])
             level=np.median(hh[100:-100,48:-48])-bias
-            h32=(np.array([[np.median(hh[i:i+16,j:j+16]) for j in range(0,n,16)] for i in range(0,m,16)])-bias)/level
+            h32=(np.array([[np.median(hh[i:i+bin,j:j+bin])
+                 for j in range(0,n,bin)] for i in range(0,m,bin)])-bias)/level
                 #plt.imshow(h32,vmin=0.95,vmax=1.1,origin='lower',cmap='gray_r')
                 #plt.show()
             m32,n32=h32.shape
-            i0=538-int(chip.header['crpix2'])//16
-            j0=536-int(chip.header['crpix1'])//16
+            i0=(8608-int(chip.header['crpix2']))//bin
+            j0=(8576-int(chip.header['crpix1']))//bin
             # print chip.header['crpix1'],chip.header['crpix2'],i0,j0,m32,n32
             z[i0:i0+m32,j0:j0+n32]=h32
 
         plt.rcParams['text.usetex']=False
-        plt.figure(figsize=(9,9),dpi=100)
+        # plt.figure(figsize=(9,9),dpi=max(100,2000//bin))   
+        l=max(9,180//bin) # make fig big enough to show all pixels
+        plt.figure(figsize=(l,l),dpi=100)
         plt.imshow(z,vmin=0.9,vmax=1.1,origin='lower',cmap='gray_r',aspect=1)
         plt.title(self.fitsfile + '      raw, median +/- 10%')
         plt.xlabel('RA %.4f   DEC %.4f' % ((self.Xlo+self.Xhi)/2, (self.Ylo+self.Yhi)/2) )
         plt.box(False)
         plt.xticks([])
         plt.yticks([])
-        plt.savefig(self.fitsfile+'_thumb.png')
+        plt.savefig(self.fitsfile+'_thumb%i.png'%bin)
         plt.clf()
 
 
