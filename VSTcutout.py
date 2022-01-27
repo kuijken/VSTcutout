@@ -215,6 +215,7 @@ class VSTcutout:
             plt.colorbar(label='Ref stars / offset bin')
             plt.savefig(fitsfile+'_astrom_zoom.png')
             plt.clf()
+            plt.close()
             self.srcXrefzoom=h
             self.srcXrefzoombins=hbins
             pk=np.unravel_index(h.argmax(),h.shape)
@@ -355,6 +356,7 @@ class VSTcutout:
             plt.savefig(savefile)
             plt.clf()
             print('Plot saved in',savefile)
+        plt.close()
 
         return out
 
@@ -400,6 +402,7 @@ class VSTcutout:
         plt.yticks([])
         plt.savefig(self.fitsfile+'_thumb%i.png'%bin)
         plt.clf()
+        plt.close()
 
 
         

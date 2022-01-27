@@ -6,4 +6,4 @@ Still need to add logic to fall back to the global value when the extension one 
 In general, when various extensions contribute to the cutout, because the reference stars are mapped to the pixels of the last extension plotted strange things can in principle happen. Better stick to the extension that contains (or most nearly contains) the target?
 
 2021-10-03
-Added offset='fit' option to cutout, which fits a linear model to the WCS offsets determined per extension. SLightly less noisy that individual measurements and may help to fix badly calibrated extensions (rejection/clipping still TBD)
+Added offset='fit' option to cutout, which fits a linear model to the WCS offsets determined per extension. Slightly less noisy that individual measurements and may help to fix badly calibrated extensions (rejection/clipping still TBD)
