@@ -23,6 +23,6 @@ import plotvstcoverage
 
 obs=plotvstcoverage.VSTVISTAcoverage()
 
-obs.plotmaps(<RA>,<DEC>,<radius>,<label>)  - this command saves a map
+obs.plotmaps(RA,DEC,radius,label)  - this command saves a map
 for each of u,g,...,K at the specified RA,DEC (all in degrees). NB
 VISTA footprints are plotted square.
