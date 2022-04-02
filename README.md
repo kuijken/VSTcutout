@@ -10,3 +10,19 @@ tweaking of the astrometry in the raw fits headers to give good alignments. See 
 
 An example script is provided.
 <img width="668" alt="Screenshot 2021-10-16 at 16 05 08" src="https://user-images.githubusercontent.com/6078683/137590490-b0e7c78c-a81b-441f-a8b5-c78cb167623d.png">
+
+# plotvstcoverage
+Script for making maps of VST and VISTA coverage at given position on
+the sky.
+
+It loads the same vst and vista fits tables with all observations, and
+then adds up the total integration time in a specified part of the
+sky. Usage:
+
+import plotvstcoverage
+
+obs=plotvstcoverage.VSTVISTAcoverage()
+
+obs.plotmaps(<RA>,<DEC>,<radius>,<label>)  - this command saves a map
+for each of u,g,...,K at the specified RA,DEC (all in degrees). NB
+VISTA footprints are plotted square.
