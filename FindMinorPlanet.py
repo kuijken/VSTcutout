@@ -44,7 +44,7 @@ class MinorPlanetSearch:
             
             obs = tapobs.search(query=query,maxrec=3000000).to_table()
             
-            print('Obtained '+instrument+' observations from TAP query to ESO')
+            print('Obtained '+instrument+' observations via TAP query to ESO')
             # turn 'object' data types into strings to fitsio can deal with them
             for col in obs.columns:
                 if obs[col].dtype=='O':
