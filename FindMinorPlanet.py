@@ -31,6 +31,8 @@ class MinorPlanetSearch:
         def getobsfromeso(instrument='OMEGACAM'):
             import pyvo
             from pyvo.dal import tap
+
+            print('Querying data from',instrument,'...')
             ESO_TAP_OBS = "http://archive.eso.org/tap_obs"
             tapobs = tap.TAPService(ESO_TAP_OBS)
             
